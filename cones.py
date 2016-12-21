@@ -26,7 +26,7 @@ def convexHullIsPointingUp(hull):
     x, y, w, h = cv2.boundingRect(hull)
 
     aspectRatio = float(w) / h
-    if aspectRatio > 0.8:
+    if aspectRatio > 0.9:
         return False
 
     listOfPointsAboveCenter = []

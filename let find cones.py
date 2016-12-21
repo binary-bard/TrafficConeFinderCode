@@ -20,8 +20,8 @@ def convexHullIsPointingUp(hull):
 
     aspectRatio = float(w) / h
 
-    if aspectRatio > 0.8:
-        print 'nope ->aspectRatio is > 0.8 it =', aspectRatio
+    if aspectRatio > 0.9:
+        print 'nope ->aspectRatio is > 0.9 it =', aspectRatio
         return False
 
     listOfPointsAboveCenter = []
