@@ -1,0 +1,1 @@
+Some of the cones are not standard cones for the competition specifically those with colored stripes or cones with spiral spaces (IMG_*). These do not work as of now but we won't have these in competition. 
