@@ -1,1 +1,4 @@
-This is a start of code to find traffic cones for RoboMagellan
+Code to find traffic cones for RoboMagellan
+- Detect cones in a video feed
+- Publish heading for the cones
+- Add ROS node
