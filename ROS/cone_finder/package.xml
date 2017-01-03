@@ -15,7 +15,11 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <depend>rospy</depend>
+  <depend>message_generation</depend>
+  <depend>message_runtime</depend>
   <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>location_msgs</depend>
 
   <doc_depend>doxygen</doc_depend>
   <!-- The export tag contains other, unspecified, tags -->

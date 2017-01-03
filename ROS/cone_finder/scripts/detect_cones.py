@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-import rospy
-from std_msgs.msg import String
-
 import numpy as np
 import cv2
 
@@ -10,14 +7,19 @@ import os
 import argparse
 import glob
 
-class Args:
+# Needed for publishing the messages
+import rospy
+from geometry_msgs.msg import Pose2D
+from cone_finder.msg import location_msgs as location_data
+
+class Args(object):
     debug = False
     fromMain = False
     image_dir = ''
     video_file = ''
 
 args = Args()
-pub = rospy.Publisher('locations', String, queue_size=10)
+pub = rospy.Publisher('locations', location_data, queue_size=10)
 
 def is_cv2():
     # if we are using OpenCV 2, then our cv2.__version__ will start
@@ -111,6 +113,12 @@ def find_cones(img):
     #cv2.imshow('imgThreshSmoothed ', imgThreshSmoothed)
     # get Canny edges
 
+    x, y, w, h = cv2.boundingRect(imgThreshSmoothed)
+    image_centerX = x + w/2
+    image_centerY = y  # This should be 0
+    #msg_str = "image center = %d, %d" % (image_centerX, image_centerY);
+    #rospy.loginfo(msg_str)
+
     imgCanny = cv2.Canny(imgThreshSmoothed, 160, 80)
     #cv2.imshow('imgCanny ', imgCanny)
     if is_cv2():
@@ -126,23 +134,28 @@ def find_cones(img):
             listOfContours.append(cv2.approxPolyDP(cnt, 6.7, True))
 
     listOfCones = []
+    pose = Pose2D()
+    loc = location_data()
+    loc.distance_is_real = False
     for contour in listOfContours:
             hull = cv2.convexHull(contour)
             # print 'convexHull',len(temp)
             if (len(hull) >= 3 and convexHullIsPointingUp(hull)):
                 listOfCones.append(hull)
+                x, y, w, h = cv2.boundingRect(hull)
+                pose.x = x + h/2 - image_centerX
+                pose.y = y - image_centerY
+                # TODO: Fix the calculation
+                pose.theta = pose.x * 1.0 / pose.y
+                loc.poses.append(pose) 
                 #imghull2 = cv2.drawContours(img.copy(), hull, 1, (0, 0, 255), 5)
                 # draw hull on image???
                 # print '--hull',len(hull)    #hull.append(temp)
            
     imghull = img.copy()
     cv2.drawContours(imghull, listOfCones, -1, (0, 255, 0), 3)
-    msg_str = 'Found %d Cones' % len(listOfCones)
-    pub.publish(msg_str)
-    if args.debug:
-        cv2.imshow('output',imghull)
-        rospy.loginfo(msg_str)
-    return
+    pub.publish(loc)
+    return len(listOfCones), imghull
 
 def find_in_images(loc='../images'):
     # get the files
@@ -151,14 +164,17 @@ def find_in_images(loc='../images'):
     rate = rospy.Rate(1) # One image per second
     for file in files:
         if args.debug:
-            rospy.loginfo('Processing file ' + file)
-        find_cones(cv2.imread(file, -1))
+            rospy.loginfo('Processing file %s' % file)
+        count, imghull = find_cones(cv2.imread(file, -1))
+        if args.debug:
+            cv2.imshow('output', imghull)
+            msg_str = 'Found %d Cones' % count
+            rospy.loginfo(msg_str)
         rate.sleep()
 
 def find_in_video(fileName):
     if(fileName == None):
       cap = cv2.VideoCapture(0)
-    
     else:
       cap = cv2.VideoCapture(fileName)
       if(cap.isOpened() == False):
@@ -169,40 +185,45 @@ def find_in_video(fileName):
       rospy.loginfo("Could not open default video device")
       return
 
+    rate = rospy.Rate(10) # 10 frames per second
     while not rospy.is_shutdown():
         # Capture frame-by-frame
         ret, frame = cap.read()
 
         # Display the resulting frame
         if(ret):
-            find_cones(frame)
-           
+            count, imghull = find_cones(frame)
+            if args.debug:
+                cv2.imshow('output', imghull)
+                msg_str = 'Found %d Cones' % count
+                rospy.loginfo(msg_str)
+
         k = cv2.waitKey(30) & 0xff
         if k == 27:
             break
+        rate.sleep()
 
     # When everything done, release the capture
     cap.release()
     cv2.destroyAllWindows()
 
 def find_cones_main():
+    print(args.debug, args.image_dir, args.video_file)
     rospy.init_node('cone_finder')
     if args.image_dir:
+        args.debug = True
         find_in_images(args.image_dir)
         # No rospy.spin when working with image dir
     else:
         find_in_video(args.video_file)
-
-    if(args.fromMain):
-    	rospy.spin()
+        rospy.spin()
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Find cones in video feed or images')
     parser.add_argument('--image_dir', '-i', help='Find cones in images under specified directory')
     parser.add_argument('--debug', '-d', action='store_true', help='Show debug messages')
     parser.add_argument('video_file', nargs='?', help='Find cones in specified video file, use default video device if not specified')
-    parser.parse_args('', args)
-    args.fromMain = True
+    parser.parse_args(None, args)
     try:
       find_cones_main()
 
