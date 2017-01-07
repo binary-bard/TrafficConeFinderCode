@@ -86,6 +86,12 @@ def convexHullIsPointingUp(hull):
     return True
 
 def find_cones(img):
+    h, w = img.shape[:2]
+    image_centerX = w/2
+    image_centerY = h  # y goes down from top
+    msg_str = "Image size = %d, %d" % (w, h);
+    rospy.loginfo(msg_str)
+
     # convert to HSV color space, this will produce better color filtering
     imgHSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
@@ -113,12 +119,6 @@ def find_cones(img):
     #cv2.imshow('imgThreshSmoothed ', imgThreshSmoothed)
     # get Canny edges
 
-    x, y, w, h = cv2.boundingRect(imgThreshSmoothed)
-    image_centerX = x + w/2
-    image_centerY = y  # This should be 0
-    #msg_str = "image center = %d, %d" % (image_centerX, image_centerY);
-    #rospy.loginfo(msg_str)
-
     imgCanny = cv2.Canny(imgThreshSmoothed, 160, 80)
     #cv2.imshow('imgCanny ', imgCanny)
     if is_cv2():
@@ -143,14 +143,13 @@ def find_cones(img):
             if (len(hull) >= 3 and convexHullIsPointingUp(hull)):
                 listOfCones.append(hull)
                 x, y, w, h = cv2.boundingRect(hull)
-                pose.x = x + h/2 - image_centerX
-                pose.y = y - image_centerY
-                # TODO: Fix the calculation
-                pose.theta = pose.x * 1.0 / pose.y
-                loc.poses.append(pose) 
-                #imghull2 = cv2.drawContours(img.copy(), hull, 1, (0, 0, 255), 5)
-                # draw hull on image???
-                # print '--hull',len(hull)    #hull.append(temp)
+                pose.x = x + w/2 - image_centerX
+                # Height is being measured top of screen to down so we need to invert y
+                pose.y = image_centerY - (y+h)
+                # It should never happen that pose.y is 0 or negative
+                if (pose.y > 0):
+                    pose.theta = (pose.x * 1.0) / pose.y
+                    loc.poses.append(pose)
            
     imghull = img.copy()
     cv2.drawContours(imghull, listOfCones, -1, (0, 255, 0), 3)
