@@ -1,6 +1,10 @@
 *.swp
 *.pyc
 .env/*
+.env
 .vscode/*
+.vscode
 .vs/*
+.vs
+.ipynb_checkpoints
 .ipynb_checkpoints/*
