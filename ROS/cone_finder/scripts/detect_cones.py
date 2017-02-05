@@ -17,7 +17,7 @@ from cv_bridge import CvBridge, CvBridgeError
 import threading
 
 class Args(object):
-    use_ros_topic = True
+    use_ros_topic = False
     debug = False
     fromMain = False
     image_dir = ''
@@ -162,7 +162,7 @@ def find_cones(img, depthImg=None):
             if depthImg is not None:
                 oldY = pose.y
                 pose.y = depthImg[pose.x, oldY]
-                rospy.loginfo('%d ==> %d' % (oldY, pose.y))
+                rospy.logdebug('%d ==> %d' % (oldY, pose.y))
 
             # It should never happen that pose.y is 0 or negative
             if (pose.y > 0):
@@ -184,12 +184,12 @@ def find_in_images(loc='../images'):
     rate = rospy.Rate(1) # One image per second
     for file in files:
         if args.debug:
-            rospy.loginfo('Processing file %s' % file)
+            rospy.logdebug('Processing file %s' % file)
         count, imghull = find_cones(cv2.imread(file, -1))
         if args.debug:
             cv2.imshow('output', imghull)
             msg_str = 'Found %d Cones' % count
-            rospy.loginfo(msg_str)
+            rospy.logdebug(msg_str)
         rate.sleep()
 
 def find_in_video(fileName):
@@ -198,11 +198,11 @@ def find_in_video(fileName):
     else:
       cap = cv2.VideoCapture(fileName)
       if(cap.isOpened() == False):
-        rospy.loginfo("Error: Could not open video file " + fileName + ". Using default device.")
+        rospy.logerr("Error: Could not open video file " + fileName + ". Using default device.")
         cap = cv2.VideoCapture(0)
 
     if(cap.isOpened() == False):
-      rospy.loginfo("Could not open default video device")
+      rospy.logerr("Could not open default video device")
       return
 
     rate = rospy.Rate(10) # 10 frames per second
@@ -240,6 +240,7 @@ class RosColorDepth:
         rospy.spin()
 
     def imageCallback(self, rgbImage, depthImage):
+
         thread = threading.Thread(target=self.processImage, args=(rgbImage, depthImage))
         thread.setDaemon(True)
         thread.start()
@@ -247,8 +248,8 @@ class RosColorDepth:
     def processImage(self, rgbImage, depthImage):
         if not self.thread_lock.acquire(False):
             return
-        
-        cvRGB = self.bridge.imgmsg_to_cv2(rgbImage)
+
+        cvRGB = self.bridge.imgmsg_to_cv2(rgbImage, "bgr8")
         cvDepth = self.bridge.imgmsg_to_cv2(depthImage)
 
         dh, dw = cvDepth.shape[:2]
@@ -259,7 +260,7 @@ class RosColorDepth:
 
         try:
             count, imghull = find_cones(cvRGB, cvDepth)
-            rgbPub.publish(self.bridge.cv2_to_imgmsg(imghull))
+            rgbPub.publish(self.bridge.cv2_to_imgmsg(imghull, "bgr8"))
             depthPub.publish(self.bridge.cv2_to_imgmsg(cvDepth))
             if args.debug:
                 #cv2.imshow('output', imghull)
@@ -267,12 +268,12 @@ class RosColorDepth:
                 rospy.loginfo(msg_str)
            
         except CvBridgeError as e:
-            print(e)
+            rospy.logerr(e)
             
         self.thread_lock.release()
     
 def find_cones_main():
-    print(args.debug, args.image_dir, args.video_file)
+    #print(args.debug, args.image_dir, args.video_file)
     rospy.init_node('cone_finder')
     if args.use_ros_topic:
         r = RosColorDepth()
