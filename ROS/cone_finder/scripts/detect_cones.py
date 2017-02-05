@@ -284,11 +284,11 @@ class RosColorDepth:
             depthCIPub.publish(self.depthCamInfo)
             colorMsg = self.bridge.cv2_to_imgmsg(imghull, "bgr8")
             colorMsg.header.stamp = ts
-            colorMsg.header.frame_id = 'camera_link'
+            colorMsg.header.frame_id = colorImage.header.frame_id
             colorPub.publish(colorMsg)
             depthMsg = depthImage
             depthMsg.header.stamp = ts
-            depthMsg.header.frame_id = 'camera_link'
+            #depthMsg.header.frame_id = 'camera_link'
             depthPub.publish(depthMsg)
             if args.debug:
                 #cv2.imshow('output', imghull)
