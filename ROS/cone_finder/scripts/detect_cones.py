@@ -10,7 +10,7 @@ import glob
 # Needed for publishing the messages
 import rospy
 import message_filters
-from sensor_msgs.msg import Image, CameraInfo
+from sensor_msgs.msg import Image, CompressedImage, CameraInfo
 from geometry_msgs.msg import Pose2D
 from cone_finder.msg import location_msgs as location_data
 from cv_bridge import CvBridge, CvBridgeError
@@ -25,8 +25,10 @@ class Args(object):
 
 args = Args()
 pub = rospy.Publisher('cone_finder/locations', location_data, queue_size=10)
-rgbPub = rospy.Publisher("cone_finder/rgbImage", Image, queue_size=10)
+colorPub = rospy.Publisher("cone_finder/colorImage", Image, queue_size=10)
 depthPub = rospy.Publisher("cone_finder/depthImage", Image, queue_size=10)
+colorCIPub = rospy.Publisher("cone_finder/colorCamInfo", CameraInfo, queue_size=2)
+depthCIPub = rospy.Publisher("cone_finder/depthCamInfo", CameraInfo, queue_size=2)
 
 def is_cv2():
     # if we are using OpenCV 2, then our cv2.__version__ will start
@@ -158,11 +160,12 @@ def find_cones(img, depthImg=None):
             x, y, w, h = cv2.boundingRect(hull)
             pose.x = x + w/2 - image_centerX
             # Height is being measured top of screen to down so we need to invert y
-            pose.y = image_centerY - (y+h)
+            lowY = image_centerY - (y+h)
+            pose.y = 256*lowY
             if depthImg is not None:
-                oldY = pose.y
-                pose.y = depthImg[pose.x, oldY]
-                rospy.logdebug('%d ==> %d' % (oldY, pose.y))
+                # Depth image is 16UC1
+                pose.y = depthImg[pose.x, lowY]
+                rospy.logdebug('%d ==> %d' % (256*lowY, pose.y))
 
             # It should never happen that pose.y is 0 or negative
             if (pose.y > 0):
@@ -170,6 +173,7 @@ def find_cones(img, depthImg=None):
                 poses.append(pose)
 
     loc.poses = poses
+    loc.header.stamp = rospy.Time.now()
     imghull = img.copy()
     cv2.drawContours(imghull, listOfCones, -1, (0, 255, 0), 3)
     if(len(listOfCones)):
@@ -232,36 +236,60 @@ class RosColorDepth:
         self.node_name = "RosColorDepth"
         self.bridge = CvBridge()
         self.thread_lock = threading.Lock()
-        rgbImage = message_filters.Subscriber("/camera/color/image_raw", Image)
+        colorCamInfo = message_filters.Subscriber("/camera/color/camera_info", CameraInfo)
+        depthCamInfo = message_filters.Subscriber("/camera/depth/camera_info", CameraInfo)
+        ts = message_filters.TimeSynchronizer([colorCamInfo, depthCamInfo], 10)
+        ts.registerCallback(self.camInfoCallback)
+        colorImage = message_filters.Subscriber("/camera/color/image_raw", Image)
         depthImage = message_filters.Subscriber("/camera/depth/image_raw", Image)
-        ts = message_filters.TimeSynchronizer([rgbImage, depthImage], 10)
+        ts = message_filters.TimeSynchronizer([colorImage, depthImage], 10)
         ts.registerCallback(self.imageCallback)
         rospy.loginfo("[%s] Initialized." %(self.node_name))
         rospy.spin()
 
-    def imageCallback(self, rgbImage, depthImage):
+    def camInfoCallback(self, colorCamInfo, depthCamInfo):
+        self.colorCamInfo = colorCamInfo
+        self.depthCamInfo = depthCamInfo
 
-        thread = threading.Thread(target=self.processImage, args=(rgbImage, depthImage))
+    def imageCallback(self, colorImage, depthImage):
+        thread = threading.Thread(target=self.processImage, args=(colorImage, depthImage))
         thread.setDaemon(True)
         thread.start()
 
-    def processImage(self, rgbImage, depthImage):
+    def processImage(self, colorImage, depthImage):
         if not self.thread_lock.acquire(False):
             return
 
-        cvRGB = self.bridge.imgmsg_to_cv2(rgbImage, "bgr8")
+        #print(colorImage.encoding, depthImage.encoding)
+        cvRGB = self.bridge.imgmsg_to_cv2(colorImage, "bgr8")
         cvDepth = self.bridge.imgmsg_to_cv2(depthImage)
 
         dh, dw = cvDepth.shape[:2]
         ch, cw = cvRGB.shape[:2]
-
         if (ch != dh) and (cw != dw): 
-            cvDepth = cv2.resize(cvDepth, (cw, ch), interpolation = cv2.INTER_LINEAR)
+            cvRGB = cv2.resize(cvRGB, (dw, dh))
+            #cvDepth = cv2.resize(cvDepth, (cw, ch), interpolation = cv2.INTER_LINEAR)
+
+        self.colorCamInfo.width = cw
+        self.colorCamInfo.height = ch
+        self.depthCamInfo.width = cw
+        self.depthCamInfo.height = ch
 
         try:
             count, imghull = find_cones(cvRGB, cvDepth)
-            rgbPub.publish(self.bridge.cv2_to_imgmsg(imghull, "bgr8"))
-            depthPub.publish(self.bridge.cv2_to_imgmsg(cvDepth))
+            ts = rospy.Time.now()
+            self.colorCamInfo.header.stamp = ts
+            self.depthCamInfo.header.stamp = ts
+            colorCIPub.publish(self.colorCamInfo)
+            depthCIPub.publish(self.depthCamInfo)
+            colorMsg = self.bridge.cv2_to_imgmsg(imghull, "bgr8")
+            colorMsg.header.stamp = ts
+            colorMsg.header.frame_id = 'camera_link'
+            colorPub.publish(colorMsg)
+            depthMsg = depthImage
+            depthMsg.header.stamp = ts
+            depthMsg.header.frame_id = 'camera_link'
+            depthPub.publish(depthMsg)
             if args.debug:
                 #cv2.imshow('output', imghull)
                 msg_str = 'Found %d Cones' % count
