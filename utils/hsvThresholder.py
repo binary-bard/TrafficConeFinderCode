@@ -34,68 +34,68 @@ if (len(sys.argv) <= 1 or len(sys.argv) > 3) :
     print("Usage: hsvThresholder.py <VideoFile> [delay_in_ms]")
     exit()
 
-delay = 200
+delay = 20
 if (len(sys.argv) == 3):
-  delay = sys.argv[2]
+  delay = int(sys.argv[2])
 
-cv2.namedWindow('image')
-
+cv2.namedWindow('ctrl')
 # create trackbars for color change
-cv2.createTrackbar('HMin1','image',0,179,nothing) # Hue is from 0-179 for Opencv
-cv2.createTrackbar('HMax1','image',0,179,nothing)
-cv2.createTrackbar('HMin2','image',0,179,nothing)
-cv2.createTrackbar('HMax2','image',0,179,nothing)
-cv2.createTrackbar('SMin','image',0,255,nothing)
-cv2.createTrackbar('SMax','image',0,255,nothing)
-cv2.createTrackbar('VMin','image',0,255,nothing)
-cv2.createTrackbar('VMax','image',0,255,nothing)
+# Hue is from 0-179 for Opencv, HMax < HMin inverts the range
+cv2.createTrackbar('HMin','ctrl',0,179,nothing)
+cv2.createTrackbar('HMax','ctrl',0,179,nothing)
+cv2.createTrackbar('SMin','ctrl',0,255,nothing)
+cv2.createTrackbar('SMax','ctrl',0,255,nothing)
+cv2.createTrackbar('VMin','ctrl',0,255,nothing)
+cv2.createTrackbar('VMax','ctrl',0,255,nothing)
 
 # Set default value for MAX HSV trackbars.
-cv2.setTrackbarPos('HMax1', 'image', 19)
-cv2.setTrackbarPos('HMin2', 'image', 160)
-cv2.setTrackbarPos('HMax2', 'image', 179)
-cv2.setTrackbarPos('SMin', 'image', 135)
-cv2.setTrackbarPos('VMin', 'image', 135)
-cv2.setTrackbarPos('SMax', 'image', 255)
-cv2.setTrackbarPos('VMax', 'image', 255)
+cv2.setTrackbarPos('HMax', 'ctrl', 19)
+cv2.setTrackbarPos('HMin', 'ctrl', 160)
+cv2.setTrackbarPos('SMin', 'ctrl', 135)
+cv2.setTrackbarPos('VMin', 'ctrl', 135)
+cv2.setTrackbarPos('SMax', 'ctrl', 255)
+cv2.setTrackbarPos('VMax', 'ctrl', 255)
 
 # Initialize to check if HSV min/max value changes
-hMin1 = hMin2 = sMin = vMin = hMax1 = hMax2 = sMax = vMax = 0
+hMin = sMin = vMin = hMax = sMax = vMax = 0
 
 cap = cv2.VideoCapture(sys.argv[1])
 if(cap.isOpened() == False):
     print("Error: Could not open video file " + sys.argv[1] + ". Using default device.")
     cap = cv2.VideoCapture(0)
 
+cv2.namedWindow('image')
 ret = cap.isOpened()
 while(ret):
     ret, frame = cap.read()
-    img = cv2.resize(frame, (480, 360))
-    
-    # get current positions of all trackbars
-    hMin1 = cv2.getTrackbarPos('HMin1','image')
-    hMin2 = cv2.getTrackbarPos('HMin2','image')
-    sMin = cv2.getTrackbarPos('SMin','image')
-    vMin = cv2.getTrackbarPos('VMin','image')
-
-    hMax1 = cv2.getTrackbarPos('HMax1','image')
-    hMax2 = cv2.getTrackbarPos('HMax2','image')
-    sMax = cv2.getTrackbarPos('SMax','image')
-    vMax = cv2.getTrackbarPos('VMax','image')
-
-    # Set minimum and max HSV values to display
-    lower1 = np.array([hMin1, sMin, vMin])
-    upper1 = np.array([hMax1, sMax, vMax])
-    lower2 = np.array([hMin2, sMin, vMin])
-    upper2 = np.array([hMax2, sMax, vMax])
-
+    img = cv2.resize(frame, (640, 480))
     # Create HSV Image and threshold into a range.
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    mask1 = cv2.inRange(hsv, lower1, upper1)
-    mask2 = cv2.inRange(hsv, lower2, upper2)
     
-    mask = mask1 + mask2
-    output = cv2.bitwise_and(img, img, mask = mask1)
+    # get current positions of all trackbars
+    hMin = cv2.getTrackbarPos('HMin','ctrl')
+    sMin = cv2.getTrackbarPos('SMin','ctrl')
+    vMin = cv2.getTrackbarPos('VMin','ctrl')
+
+    hMax = cv2.getTrackbarPos('HMax','ctrl')
+    sMax = cv2.getTrackbarPos('SMax','ctrl')
+    vMax = cv2.getTrackbarPos('VMax','ctrl')
+
+    # Set minimum and max HSV values to display
+    if(hMin > hMax):
+        lower1 = np.array([0, sMin, vMin])
+        upper1 = np.array([hMax, sMax, vMax])
+        mask1 = cv2.inRange(hsv, lower1, upper1)
+        lower2 = np.array([hMin, sMin, vMin])
+        upper2 = np.array([255, sMax, vMax])
+        mask2 = cv2.inRange(hsv, lower2, upper2)
+        mask = cv2.bitwise_or(mask1, mask2)
+    else:
+        lower = np.array([hMin, sMin, vMin])
+        upper = np.array([hMax, sMax, vMax])
+        mask = cv2.inRange(hsv, lower, upper)
+        
+    output = cv2.bitwise_and(img, img, mask=mask)
 
     # Display output image
     cv2.imshow('image',output)
