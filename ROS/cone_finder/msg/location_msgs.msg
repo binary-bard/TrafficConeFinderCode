@@ -2,10 +2,7 @@
 # points).
 Header header
 
-# Since we are dealing with images and we might have real distance sensors 
-# in case of some cameras like realsense, this flag indicates whether distance
-# is real or in pixels
-bool distance_is_real
+# We will use Point instead of Pose2D. 
+# x and y will be from Image and z from real distance
+geometry_msgs/Point[] poses
 
-# Use Pose2D for the distance - we will use a list later
-geometry_msgs/Pose2D[] poses
