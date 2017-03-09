@@ -49,6 +49,7 @@ catkin_python_setup()
 ## Generate messages in the 'msg' folder
 add_message_files(
    FILES
+   pose_data.msg
    location_msgs.msg
 )
 

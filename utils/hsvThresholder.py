@@ -2,7 +2,11 @@
 #
 #MIT License
 
+#Original code:
 #Copyright (c) 2016 Saurabh Khanduja
+
+#Changes
+#Copyright (c) 2017 Ajay Guleria
 
 #Permission is hereby granted, free of charge, to any person obtaining a copy
 #of this software and associated documentation files (the "Software"), to deal

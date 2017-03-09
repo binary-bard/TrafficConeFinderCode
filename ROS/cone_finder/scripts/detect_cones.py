@@ -9,6 +9,7 @@ import rospy, message_filters, threading
 # Needed for publishing the messages
 from sensor_msgs.msg import Image, CompressedImage, CameraInfo
 from geometry_msgs.msg import Point
+from cone_finder.msg import pose_data
 from cone_finder.msg import location_msgs as location_data
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -223,9 +224,7 @@ def find_cones(img, depthImg=None):
             listOfHullsAndArea.append((hull, cv2.contourArea(hull), depthRange))
 
     listOfCones = []
-    listOfAreas = []
-    listOfObstructions = []
-    pose = Point()
+    pose = pose_data()
     poses = []
     loc = location_data()
 
@@ -237,10 +236,14 @@ def find_cones(img, depthImg=None):
             listOfCones.append(hull)
             x, y, w, h = cv2.boundingRect(hull)
             pose.x = x + w/2 - image_centerX
+            pose.w = w
             # Height is being measured top of screen to down so we need to invert y
             pose.y = (image_centerY - (y+h))
+            pose.h = h
             # Divide depth by 256 since x isn't really in real units
             pose.z = depthRange[0]   # But this is the hypotenuse
+            pose.d = depthRange[1] - depthRange[0]
+            pose.area = area
             poses.append(pose)
 
     loc.poses = poses
