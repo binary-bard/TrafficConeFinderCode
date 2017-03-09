@@ -12,25 +12,6 @@ from geometry_msgs.msg import Point
 from cone_finder.msg import pose_data
 from cone_finder.msg import location_msgs as location_data
 from cv_bridge import CvBridge, CvBridgeError
-    
-def is_cv2():
-    # if we are using OpenCV 2, then our cv2.__version__ will start
-    # with '2.'
-    return check_opencv_version("2.")
-
-def is_cv3():
-    # if we are using OpenCV 3.X, then our cv2.__version__ will start
-    # with '3.'
-    return check_opencv_version("3.")
-
-def check_opencv_version(major, lib=None):
-    # if the supplied library is None, import OpenCV
-    if lib is None:
-        import cv2 as lib
-
-    # return whether or not the current OpenCV version matches the
-    # major version number
-    return lib.__version__.startswith(major)
 
 class Args(object):
     use_ros_topic = False
