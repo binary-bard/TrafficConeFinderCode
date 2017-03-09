@@ -21,7 +21,7 @@ throttle_limits = [1650, 1650, 1800]  # fwd range only; for testing; middle is N
  
 # We will get angle between +pi/2 to -pi/2 for steering
 # We will get 480 pixels range for throttle but should limit this
-class Args(object):
+class Args():
     # Typically less than 1 unless the range isn't responsive
     throttle_factor = 1.0
     steering_factor = 1.0
@@ -31,10 +31,13 @@ class Args(object):
 args = Args()
 
 def update_prev_poses():
+#    if(len(args.prev_pos_confs) == 0):
+#      return
+
     new_pos_confs = []
-    for prev_pose in args.prev_pos_confs:
-        prev_pose.conf *= args.conf_decay_factor
-        new_pos_confs.append(prev_pose)
+    for (prev_pose, confidence) in args.prev_pos_confs:
+        confidence *= args.conf_decay_factor
+        new_pos_confs.append((prev_pose, confidence))
 
     new_pos_confs = sorted(new_pos_confs, key=lambda pose: pose[1], reverse=True)
     args.prev_pos_confs = new_pos_confs[0:16]
@@ -72,13 +75,13 @@ def seek_cone(loc):
     # Compute confidence for each hull by area and h distance
     maxArea = max(pose.area for pose in loc.poses)
     new_pos_confs = []
+    update_prev_poses()
     for pose in loc.poses:
       # Need to figure out appropriate weightage for area and distance
       # Scale distance as farther objects will use less pixels
-      pd = 1 + (pose.x/320.0)**2 + (pose.y/480.0)**2
-      confidence = 1/(2*pd) + (pose.area/4.0*maxArea)
+      pd = 1 + (pose.x/80.0)**2 + (pose.y/120.0)**2
       # Find this cone among cones from previous frames and use the confidence
-      confidence = confidence + getConfFromOldFrames(pose)
+      confidence = 1/pd + pose.area/(4.0*maxArea) + getConfFromOldFrames(pose)
       new_pos_confs.append((pose, confidence))
     
     # Sort the new list by confidence and descending
