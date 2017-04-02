@@ -22,7 +22,7 @@ class RosColorDepth:
     thread_lock = threading.Lock()
     ts = time.clock()
     cf = ConeFinder()
-    cs = ConeSeeker()
+    cs = ConeSeeker(0.3)
     lc = 0
     pub = rospy.Publisher('cone_finder/locations', location_data, queue_size=10)
     colorPub = rospy.Publisher("cone_finder/colorImage", Image, queue_size=10)

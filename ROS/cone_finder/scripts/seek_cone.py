@@ -29,7 +29,7 @@ class Args(object):
 args = Args()
       
 def drive_to_cone(loc):
-    cs = ConeSeeker()
+    cs = ConeSeeker(0.3)
     (cone_loc, confidence, sd, td) = cs.seek_cone(loc.poses)
     rospy.loginfo('Confidence (%d, %d) = %f' % (cone_loc.x, cone_loc.y, confidence))
 

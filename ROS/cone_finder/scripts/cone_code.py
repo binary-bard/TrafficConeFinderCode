@@ -243,12 +243,13 @@ class ConeSeeker:
     conf_decay_rate = 0.8
     nItems = 16
 
-    def __init__(self):
+    def __init__(self, min_throttle=0.3):
         self.prev_pos_confs = []
         self.seek_started = False
         self.timer = None
         # Turn right
         self.st_delta = 1.0
+        self.min_throttle = min_throttle
 
     def _search_timeout(self):
         # Reverse steering values at each timeout
@@ -262,8 +263,7 @@ class ConeSeeker:
             self.timer = Timer(5, self._search_timeout)
             self.timer.start()
 
-        min_throttle = rospy.get_param("/CONE_MIN_THROTTLE")/100.
-        return (self.st_delta, min_throttle)
+        return (self.st_delta, self.min_throttle)
 
     def _update_prev_poses(self):
         new_pos_confs = []
@@ -307,8 +307,6 @@ class ConeSeeker:
         if cone_loc.x < -10 or cone_loc.x > 10:
             steering_delta = cone_loc.x/320.0
 
-        # Slowest approach to cone
-        min_throttle = rospy.get_param("/CONE_MIN_THROTTLE")/100.
         # Use real depth when available for throttle
         if cone_loc.z > 0:
             # Real depth is in mm and maximum would probably be less than 5m
@@ -316,8 +314,8 @@ class ConeSeeker:
         else:
             throttle_delta = cone_loc.y/480.
         
-        if throttle_delta < min_throttle:
-            throttle_delta = min_throttle
+        if throttle_delta < self.min_throttle:
+            throttle_delta = self.min_throttle
         return (steering_delta, throttle_delta)
 
     def seek_cone(self, poses):
