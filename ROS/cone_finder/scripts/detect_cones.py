@@ -65,7 +65,7 @@ class RosColorDepth:
 
     def markVideo(self, imghull, loc):
         if(len(loc.poses)):
-            (cl, conf, frame) = self.cs.seek_cone(loc.poses)
+            (cl, conf, sd, td) = self.cs.seek_cone(loc.poses)
             #frame should be 0
             (ih, iw) = imghull.shape[:2]
             pt1 = (iw/2 + cl.x - cl.w/2, ih - cl.y)

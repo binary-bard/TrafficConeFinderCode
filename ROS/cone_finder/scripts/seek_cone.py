@@ -30,30 +30,12 @@ args = Args()
       
 def drive_to_cone(loc):
     cs = ConeSeeker()
-    (cone_loc, confidence, frame) = cs.seek_cone(loc.poses)
+    (cone_loc, confidence, sd, td) = cs.seek_cone(loc.poses)
     rospy.loginfo('Confidence (%d, %d) = %f' % (cone_loc.x, cone_loc.y, confidence))
 
-    steering = steering_limits[1]
-    # Steer if not in front
-    if(cone_loc.x < -10 or cone_loc.x > 10):
-        #z = math.sqrt(cone_loc.x*cone_loc.x + cone_loc.y*cone_loc.y)
-        #steering = steering + args.steering_factor*500*cone_loc.x/z
-        steering = steering + args.steering_factor*2*cone_loc.x
-        
+    steering = steering_limits[1] + (steering_limits[2] - steering_limits[1]) * sd
     # Slowest approach to cone
-    throttle = throttle_limits[1] + 20
-    tadj = 0.0
-    # Use real depth when available for throttle
-    if(cone_loc.z > 0):
-        # Real depth is in mm and maximum would probably be less than 6m
-        if(cone_loc.z > 300):
-            tadj = args.throttle_factor*(cone_loc.z - 300)/50
-    else:
-        if(cone_loc.y > 40):
-            tadj = args.throttle_factor*(cone_loc.y - 40)
-
-    #-- test with fixed throttle to start
-    throttle = throttle + tadj
+    throttle = throttle_limits[1] + (throttle_limits[2] - throttle_limits[1]) * td
 
     # Everything must be bounded    
     if(steering > steering_limits[2]):
